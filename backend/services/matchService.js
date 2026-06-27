@@ -206,17 +206,17 @@ const simulateMatch = (roomCode, host, opponent) => {
       }
     }
 
-    // Base chances created per segment
-    const hostChancesBase = (0.5 + (segPossession / 25) + hostPaceBonus) * hostMomentum * hostLateGameMod;
-    const opponentChancesBase = (0.5 + ((100 - segPossession) / 25) + opponentPaceBonus) * opponentMomentum * opponentLateGameMod;
+    // Base chances created per segment (adjusted base for active chance creation)
+    const hostChancesBase = (1.0 + (segPossession / 18) + hostPaceBonus) * hostMomentum * hostLateGameMod;
+    const opponentChancesBase = (1.0 + ((100 - segPossession) / 18) + opponentPaceBonus) * opponentMomentum * opponentLateGameMod;
 
     // Defense ratings and identity reduction
     const hostDefStrength = ((hostRatings.defense * 0.7) + (hostRatings.defending * 0.3)) * hostMomentum * hostLateDefMod;
     const opponentDefStrength = ((opponentRatings.defense * 0.7) + (opponentRatings.defending * 0.3)) * opponentMomentum * opponentLateDefMod;
 
     // Shots taken this segment
-    const hostSegShots = Math.max(0, Math.round(hostChancesBase * (80 / (opponentDefStrength || 1)) * opponentDefFactor + Math.random() * 0.8));
-    const opponentSegShots = Math.max(0, Math.round(opponentChancesBase * (80 / (hostDefStrength || 1)) * hostDefFactor + Math.random() * 0.8));
+    const hostSegShots = Math.max(0, Math.round(hostChancesBase * (80 / (opponentDefStrength || 1)) * opponentDefFactor + Math.random() * 1.2));
+    const opponentSegShots = Math.max(0, Math.round(opponentChancesBase * (80 / (hostDefStrength || 1)) * hostDefFactor + Math.random() * 1.2));
 
     hostShots += hostSegShots;
     opponentShots += opponentSegShots;
@@ -231,9 +231,20 @@ const simulateMatch = (roomCode, host, opponent) => {
     const hostConversion = (0.12 * (hostAttStrength / (opponentGkStrength || 1)) + hostPhysBonus) * hostPhysicalRatio * hostCaptainFactor + Math.random() * 0.03;
     const opponentConversion = (0.12 * (opponentAttStrength / (hostGkStrength || 1)) + opponentPhysBonus) * opponentPhysicalRatio * opponentCaptainFactor + Math.random() * 0.03;
 
-    // Calculate goals in this segment
-    const hostSegGoals = Math.round(hostSegShots * hostConversion);
-    const opponentSegGoals = Math.round(opponentSegShots * opponentConversion);
+    // Calculate goals in this segment probabilistically per shot to avoid segment rounding down to 0
+    let hostSegGoals = 0;
+    for (let s = 0; s < hostSegShots; s++) {
+      if (Math.random() < hostConversion) {
+        hostSegGoals++;
+      }
+    }
+
+    let opponentSegGoals = 0;
+    for (let s = 0; s < opponentSegShots; s++) {
+      if (Math.random() < opponentConversion) {
+        opponentSegGoals++;
+      }
+    }
 
     // Save events
     if (hostSegGoals > 0) {
