@@ -25,6 +25,7 @@ const RoomSchema = new mongoose.Schema({
   currentPositionIndex: { type: Number, default: 0 }, // 0 is Captain round, 1-11 are formation nodes
   draftHistory: [{ type: mongoose.Schema.Types.Mixed }], // Array of events for reconnecting
   endsAt: { type: Number, default: 0 },
+  isAi: { type: Boolean, default: false },
   roomSeed: { type: String, default: '' },
   createdAt: { type: Date, default: Date.now, expires: 7200 } // Auto TTL cleanup after 2 hours
 });

@@ -146,11 +146,11 @@ export const GameProvider = ({ children }) => {
     setSocket(newSocket);
   };
 
-  const createRoom = async (name) => {
+  const createRoom = async (name, isAi = false) => {
     try {
       setLoading(true);
       setErrorMessage('');
-      const response = await api.post('/create-room', { name });
+      const response = await api.post('/create-room', { name, isAi });
       const { roomCode: code, room: newRoom } = response.data;
 
       setPlayerName(name);

@@ -14,7 +14,7 @@ const generateRoomCode = () => {
 
 exports.createRoom = async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, isAi } = req.body;
     if (!name) {
       return res.status(400).json({ message: "Player name is required" });
     }
@@ -33,6 +33,9 @@ exports.createRoom = async (req, res) => {
       code = generateRoomCode();
       existingRoom = await Room.findOne({ code });
     }
+
+    const FORMATIONS = ['433', '442', '4231', '352', '532', '343'];
+    const aiFormation = FORMATIONS[Math.floor(Math.random() * FORMATIONS.length)];
     
     const room = new Room({
       code,
@@ -44,8 +47,16 @@ exports.createRoom = async (req, res) => {
         selectedPlayers: [],
         completed: false
       },
-      opponent: null,
-      status: 'waiting',
+      opponent: isAi ? {
+        name: "AI Bot",
+        socketId: "AI_BOT_SOCKET_ID",
+        ready: true,
+        formation: aiFormation,
+        selectedPlayers: [],
+        completed: false
+      } : null,
+      status: isAi ? 'formation' : 'waiting',
+      isAi: !!isAi,
       availablePlayers: availableIds,
       draftedPlayers: [],
       hostOptions: [],
@@ -55,7 +66,7 @@ exports.createRoom = async (req, res) => {
     });
     
     await room.save();
-    console.log(`Room created: ${code} by ${name}`);
+    console.log(`Room created: ${code} by ${name} (AI: ${!!isAi})`);
     res.status(201).json({ roomCode: code, room });
   } catch (error) {
     console.error(`Create Room Error: ${error.message}`);

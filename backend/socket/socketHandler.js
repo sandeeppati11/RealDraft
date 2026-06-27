@@ -412,6 +412,55 @@ const socketHandler = (io) => {
 
         await room.save();
 
+        // ── AI Opponent auto-draft logic ──
+        if (room.isAi) {
+          if (room.opponent.selectedPlayers.length < expectedCount) {
+            const isCapPick = room.currentPositionIndex === 0;
+            let bestPick = null;
+            let bestScore = -1;
+            let bestNode = null;
+
+            for (const p of room.opponentOptions) {
+              let nodeName;
+              if (isCapPick) {
+                const captainSlotIdx = findBestCaptainSlot(
+                  room.opponent.formation, p.position, p.secondaryPositions || [], []
+                );
+                nodeName = (FORMATION_POSITIONS[room.opponent.formation] || FORMATION_POSITIONS['433'])[captainSlotIdx];
+              } else {
+                const captainIdx = getCaptainSlotIdx(room.opponent);
+                const remaining  = getRemainingSlots(room.opponent.formation, captainIdx);
+                nodeName = remaining[room.currentPositionIndex - 1];
+              }
+
+              // Calculate smart selection weight
+              let score = p.overall * 1.5 + p.draftScore * 0.5;
+              const cleanNode = nodeName.replace(/\d+$/, '');
+              if (p.position === cleanNode) {
+                score += 40;
+              } else if (p.secondaryPositions && p.secondaryPositions.includes(cleanNode)) {
+                score += 15;
+              }
+              if (isCapPick && p.isCaptainCandidate && p.overall >= 88) {
+                score += 50;
+              }
+
+              if (score > bestScore) {
+                bestScore = score;
+                bestPick = p;
+                bestNode = nodeName;
+              }
+            }
+
+            if (bestPick) {
+              room.opponent.selectedPlayers.push({ position: bestNode, player: bestPick, isCaptain: isCapPick });
+              room.draftedPlayers.push(bestPick.id);
+              room.availablePlayers = room.availablePlayers.filter(id => id !== bestPick.id);
+              await room.save();
+            }
+          }
+        }
+
         const hostCompletedRound     = room.host.selectedPlayers.length === expectedCount;
         const opponentCompletedRound = room.opponent.selectedPlayers.length === expectedCount;
 

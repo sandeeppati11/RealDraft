@@ -8,19 +8,20 @@ export default function Landing() {
   const [code, setCode] = useState('');
   const [isJoining, setIsJoining] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [playMode, setPlayMode] = useState('ai'); // 'ai' or 'friend'
 
   useEffect(() => {
     // Clear errors on load
     setErrorMessage('');
   }, []);
 
-  const handleCreate = (e) => {
+  const handleCreate = (e, isAi = false) => {
     e.preventDefault();
     if (!name.trim()) {
       setErrorMessage('Please enter your name first');
       return;
     }
-    createRoom(name.trim());
+    createRoom(name.trim(), isAi);
   };
 
   const handleJoin = (e) => {
@@ -97,26 +98,66 @@ export default function Landing() {
 
           {!isJoining ? (
             /* Host options */
-            <div className="space-y-3 pt-2">
-              <button
-                onClick={handleCreate}
-                disabled={loading}
-                className="w-full py-3.5 px-4 bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 text-black font-black rounded-xl shadow-lg transition-all duration-300 uppercase tracking-wider text-sm flex justify-center items-center"
-              >
-                {loading ? (
-                  <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  'Create Draft Room'
-                )}
-              </button>
+            <div className="space-y-5 pt-2">
+              {/* Game Mode Selector */}
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+                  Choose Game Mode
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setPlayMode('ai')}
+                    className={`py-3.5 px-4 rounded-xl border font-black uppercase tracking-wider text-xs transition-all duration-300 flex flex-col items-center justify-center gap-1.5
+                      ${playMode === 'ai'
+                        ? 'bg-yellow-400/10 border-yellow-400/80 text-yellow-400 shadow-md shadow-yellow-500/5'
+                        : 'bg-white/5 border-white/5 text-gray-400 hover:bg-white/10 hover:border-white/10'
+                      }
+                    `}
+                  >
+                    <span className="text-xl">🤖</span>
+                    <span>Play with AI</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPlayMode('friend')}
+                    className={`py-3.5 px-4 rounded-xl border font-black uppercase tracking-wider text-xs transition-all duration-300 flex flex-col items-center justify-center gap-1.5
+                      ${playMode === 'friend'
+                        ? 'bg-yellow-400/10 border-yellow-400/80 text-yellow-400 shadow-md shadow-yellow-500/5'
+                        : 'bg-white/5 border-white/5 text-gray-400 hover:bg-white/10 hover:border-white/10'
+                      }
+                    `}
+                  >
+                    <span className="text-xl">👥</span>
+                    <span>Play with Friend</span>
+                  </button>
+                </div>
+              </div>
 
-              <button
-                onClick={() => setIsJoining(true)}
-                disabled={loading}
-                className="w-full py-3.5 px-4 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold rounded-xl transition-all duration-300 uppercase tracking-wider text-xs"
-              >
-                Join Existing Room
-              </button>
+              {/* Action Buttons */}
+              <div className="space-y-3 pt-2">
+                <button
+                  onClick={(e) => handleCreate(e, playMode === 'ai')}
+                  disabled={loading}
+                  className="w-full py-3.5 px-4 bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 text-black font-black rounded-xl shadow-lg transition-all duration-300 uppercase tracking-wider text-sm flex justify-center items-center"
+                >
+                  {loading ? (
+                    <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                  ) : playMode === 'ai' ? (
+                    'Enter AI Draft Arena'
+                  ) : (
+                    'Create Multiplayer Room'
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setIsJoining(true)}
+                  disabled={loading}
+                  className="w-full py-3.5 px-4 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold rounded-xl transition-all duration-300 uppercase tracking-wider text-xs"
+                >
+                  Join Existing Room
+                </button>
+              </div>
             </div>
           ) : (
             /* Joining panel options */
