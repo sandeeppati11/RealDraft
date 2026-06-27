@@ -17,6 +17,25 @@ const FORMATION_POSITIONS = {
 
 const activeTimers = {};      // Maps roomCode -> setTimeout instance
 const disconnectTimeouts = {}; // Maps roomCode -> setTimeout instance
+const roomLocks = {};          // Maps roomCode -> Promise chain for sequential updates
+
+// Helper to execute database operations sequentially per room to prevent Mongoose VersionErrors
+function executeQueue(roomCode, taskFn) {
+  if (!roomLocks[roomCode]) {
+    roomLocks[roomCode] = Promise.resolve();
+  }
+  roomLocks[roomCode] = roomLocks[roomCode]
+    .then(async () => {
+      try {
+        await taskFn();
+      } catch (err) {
+        console.error(`[Queue Task Error] Room ${roomCode}:`, err.message);
+      }
+    })
+    .catch((err) => {
+      console.error(`[Queue Chain Error] Room ${roomCode}:`, err.message);
+    });
+}
 
 /**
  * In-memory draft sequence cache.
@@ -262,8 +281,8 @@ const socketHandler = (io) => {
 
     // Join Room Event
     socket.on('join-room', async ({ roomCode, playerName }) => {
-      try {
-        const code = roomCode.toUpperCase();
+      const code = roomCode.toUpperCase();
+      executeQueue(code, async () => {
         const room = await Room.findOne({ code });
         if (!room) {
           socket.emit('error-msg', 'Room not found');
@@ -291,17 +310,15 @@ const socketHandler = (io) => {
 
         await room.save();
         io.to(code).emit('room-state', room);
-      } catch (err) {
-        console.error(`Socket join-room error: ${err.message}`);
-      }
+      });
     });
 
     // Formation Selected Event
     socket.on('formation-selected', async ({ formation }) => {
-      try {
-        const code = socket.roomCode;
-        if (!code) return;
+      const code = socket.roomCode;
+      if (!code) return;
 
+      executeQueue(code, async () => {
         const room = await Room.findOne({ code });
         if (!room) return;
 
@@ -346,17 +363,15 @@ const socketHandler = (io) => {
         } else {
           io.to(code).emit('room-state', room);
         }
-      } catch (err) {
-        console.error(`Socket formation-selected error: ${err.message}`);
-      }
+      });
     });
 
     // Player Picked Event
     socket.on('player-picked', async ({ playerId }) => {
-      try {
-        const code = socket.roomCode;
-        if (!code) return;
+      const code = socket.roomCode;
+      if (!code) return;
 
+      executeQueue(code, async () => {
         const room = await Room.findOne({ code });
         if (!room) return;
 
@@ -455,9 +470,7 @@ const socketHandler = (io) => {
           // Only one player picked — partial state update
           io.to(code).emit('room-state', room);
         }
-      } catch (err) {
-        console.error(`Socket player-picked error: ${err.message}`);
-      }
+      });
     });
 
     // Disconnect Event
@@ -466,7 +479,7 @@ const socketHandler = (io) => {
       const code = socket.roomCode;
       if (!code) return;
 
-      try {
+      executeQueue(code, async () => {
         const room = await Room.findOne({ code });
         if (!room) return;
 
@@ -501,9 +514,7 @@ const socketHandler = (io) => {
             delete disconnectTimeouts[code];
           }, 30000);
         }
-      } catch (err) {
-        console.error(`Socket disconnect clean error: ${err.message}`);
-      }
+      });
     });
   });
 };
@@ -518,7 +529,7 @@ function startDraftTimer(io, roomCode) {
   activeTimers[roomCode] = setTimeout(async () => {
     delete activeTimers[roomCode];
 
-    try {
+    executeQueue(roomCode, async () => {
       const room = await Room.findOne({ code: roomCode });
       if (!room || room.status !== 'drafting') return;
 
@@ -613,9 +624,7 @@ function startDraftTimer(io, roomCode) {
           startDraftTimer(io, roomCode);
         }
       }
-    } catch (err) {
-      console.error(`Timer auto-pick error: ${err.message}`);
-    }
+    });
   }, 30500);
 }
 
