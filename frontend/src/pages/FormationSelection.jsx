@@ -14,6 +14,17 @@ export default function FormationSelection() {
   const { room, playerName, selectFormation } = useGame();
   const [selected, setSelected] = useState('');
   const [locked, setLocked] = useState(false);
+  const [showRules, setShowRules] = useState(() => {
+    return !localStorage.getItem('realdraft_hide_rules');
+  });
+  const [dontShowAgain, setDontShowAgain] = useState(false);
+
+  const handleDismissRules = () => {
+    if (dontShowAgain) {
+      localStorage.setItem('realdraft_hide_rules', 'true');
+    }
+    setShowRules(false);
+  };
 
   const isHost = room?.host?.name === playerName;
   const self = isHost ? room?.host : room?.opponent;
@@ -41,7 +52,85 @@ export default function FormationSelection() {
   const hasLocked = self?.ready || locked;
 
   return (
-    <div className="min-h-screen bg-gradient-animate flex flex-col items-center justify-center p-4">
+    <>
+      {showRules && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fade-in">
+          <div className="w-full max-w-lg bg-gradient-to-br from-gray-900 via-[#0a0f1d] to-[#150f24] border border-white/10 rounded-3xl p-8 shadow-2xl relative animate-scale-up text-white">
+            <div className="text-center mb-6">
+              <span className="text-[10px] bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-full font-black uppercase tracking-wider">
+                📜 Arena Rules
+              </span>
+              <h2 className="text-2xl font-black mt-2 text-glow-gold">RealDraft Regulations</h2>
+              <p className="text-gray-400 text-xs mt-1">Read the draft rules before locking in your tactical systems.</p>
+            </div>
+
+            <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 text-sm text-gray-300">
+              <div className="flex gap-3">
+                <span className="text-lg">👑</span>
+                <div>
+                  <h4 className="font-bold text-white text-xs uppercase tracking-wide">Round 1: Captain Pick</h4>
+                  <p className="text-xs text-gray-400 mt-0.5">Select your marquee superstar captain. Captains get a permanent rating bonus for the match.</p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <span className="text-lg">📋</span>
+                <div>
+                  <h4 className="font-bold text-white text-xs uppercase tracking-wide">Formation Mapping</h4>
+                  <p className="text-xs text-gray-400 mt-0.5">Rounds 2–11 will offer selections specifically mapped to your tactical formation slots on the board.</p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <span className="text-lg">🔄</span>
+                <div>
+                  <h4 className="font-bold text-white text-xs uppercase tracking-wide">Shared Card Pool</h4>
+                  <p className="text-xs text-gray-400 mt-0.5">Both players draft simultaneously from the same player base. Once a player card is locked, it is removed from the game pool.</p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <span className="text-lg">🧠</span>
+                <div>
+                  <h4 className="font-bold text-white text-xs uppercase tracking-wide">Draft Memory System</h4>
+                  <p className="text-xs text-gray-400 mt-0.5">To prevent duplicate builds, the engine remembers your leagues and clubs and suppresses matching drafts in future rounds.</p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <span className="text-lg">⏱️</span>
+                <div>
+                  <h4 className="font-bold text-white text-xs uppercase tracking-wide">30s Shot Clock</h4>
+                  <p className="text-xs text-gray-400 mt-0.5">You have 30 seconds per round. Failure to confirm will cause the server to auto-pick a card at random.</p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <span className="text-lg">⚽</span>
+                <div>
+                  <h4 className="font-bold text-white text-xs uppercase tracking-wide">AI Match Simulation</h4>
+                  <p className="text-xs text-gray-400 mt-0.5">After all 11 rounds, the server simulates a full 90-minute match based on team strength, captain choice, chemistry, and stats.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 border-t border-white/10 pt-4 flex flex-col items-center gap-4">
+              <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-gray-400 hover:text-white">
+                <input
+                  type="checkbox"
+                  checked={dontShowAgain}
+                  onChange={(e) => setDontShowAgain(e.target.checked)}
+                  className="rounded border-white/20 bg-black/40 text-yellow-500 focus:ring-0 w-4 h-4 cursor-pointer"
+                />
+                <span>Don't show this again</span>
+              </label>
+
+              <button
+                onClick={handleDismissRules}
+                className="w-full py-3 bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 text-black font-black rounded-xl uppercase tracking-wider text-xs transition-all duration-200"
+              >
+                Proceed to Formation Selection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      <div className="min-h-screen bg-gradient-animate flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-2xl glass-panel rounded-3xl p-8 border border-white/10 shadow-2xl space-y-8">
         
         {/* Header */}
@@ -149,5 +238,6 @@ export default function FormationSelection() {
 
       </div>
     </div>
+    </>
   );
 }
