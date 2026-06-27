@@ -14,15 +14,9 @@ export default function FormationSelection() {
   const { room, playerName, selectFormation } = useGame();
   const [selected, setSelected] = useState('');
   const [locked, setLocked] = useState(false);
-  const [showRules, setShowRules] = useState(() => {
-    return !localStorage.getItem('realdraft_hide_rules');
-  });
-  const [dontShowAgain, setDontShowAgain] = useState(false);
+  const [showRules, setShowRules] = useState(true);
 
   const handleDismissRules = () => {
-    if (dontShowAgain) {
-      localStorage.setItem('realdraft_hide_rules', 'true');
-    }
     setShowRules(false);
   };
 
@@ -109,17 +103,7 @@ export default function FormationSelection() {
               </div>
             </div>
 
-            <div className="mt-6 border-t border-white/10 pt-4 flex flex-col items-center gap-4">
-              <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-gray-400 hover:text-white">
-                <input
-                  type="checkbox"
-                  checked={dontShowAgain}
-                  onChange={(e) => setDontShowAgain(e.target.checked)}
-                  className="rounded border-white/20 bg-black/40 text-yellow-500 focus:ring-0 w-4 h-4 cursor-pointer"
-                />
-                <span>Don't show this again</span>
-              </label>
-
+            <div className="mt-6 border-t border-white/10 pt-4">
               <button
                 onClick={handleDismissRules}
                 className="w-full py-3 bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 text-black font-black rounded-xl uppercase tracking-wider text-xs transition-all duration-200"
