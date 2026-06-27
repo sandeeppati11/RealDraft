@@ -195,7 +195,10 @@ export default function DraftRoom() {
                   <h3 className="text-lg font-black uppercase tracking-wider text-white">
                     Select Your Player
                   </h3>
-                  <p className="text-gray-400 text-xs mt-1">
+                  <p className="text-gray-400 text-xs mt-1 block lg:hidden">
+                    👈 Swipe left/right to view options, tap to select
+                  </p>
+                  <p className="text-gray-400 text-xs mt-1 hidden lg:block">
                     Choose one player to lock into your squad. Unselected cards return to the shared pool.
                   </p>
                 </div>
@@ -234,11 +237,11 @@ export default function DraftRoom() {
                   </div>
                 ) : (
                   /* ── Cards grid (fades in after loader) ── */
-                  <div className="grid grid-cols-2 lg:flex lg:flex-row lg:justify-center lg:items-start gap-3 py-2 w-full animate-fade-in-up">
+                  <div className="flex flex-row overflow-x-auto lg:overflow-x-visible lg:justify-center lg:items-start gap-4 py-3 px-2 w-full snap-x snap-mandatory scrollbar-none scroll-smooth animate-fade-in-up">
                     {myOptions && myOptions.map((player, idx) => (
                       <div
                         key={player.id}
-                        className={`flex justify-center ${idx === 4 ? 'col-span-2' : ''}`}
+                        className="flex justify-center shrink-0 snap-center w-[145px] sm:w-[170px] lg:w-[180px] xl:w-[192px]"
                         style={{ animationDelay: `${idx * 0.07}s` }}
                       >
                         <div className="w-full flex justify-center">
