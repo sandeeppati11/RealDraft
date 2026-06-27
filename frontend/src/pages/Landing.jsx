@@ -150,13 +150,15 @@ export default function Landing() {
                   )}
                 </button>
 
-                <button
-                  onClick={() => setIsJoining(true)}
-                  disabled={loading}
-                  className="w-full py-3.5 px-4 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold rounded-xl transition-all duration-300 uppercase tracking-wider text-xs"
-                >
-                  Join Existing Room
-                </button>
+                {playMode !== 'ai' && (
+                  <button
+                    onClick={() => setIsJoining(true)}
+                    disabled={loading}
+                    className="w-full py-3.5 px-4 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold rounded-xl transition-all duration-300 uppercase tracking-wider text-xs"
+                  >
+                    Join Existing Room
+                  </button>
+                )}
               </div>
             </div>
           ) : (
@@ -201,14 +203,16 @@ export default function Landing() {
             </form>
           )}
 
-          <div className="border-t border-white/15 my-6 pt-4 text-center">
-            <button
-              onClick={() => setShowLeaderboard(true)}
-              className="text-xs font-bold text-gray-400 hover:text-yellow-400 uppercase tracking-wider transition-colors"
-            >
-              🏆 View Leaderboard
-            </button>
-          </div>
+          {playMode !== 'ai' && (
+            <div className="border-t border-white/15 my-6 pt-4 text-center">
+              <button
+                onClick={() => setShowLeaderboard(true)}
+                className="text-xs font-bold text-gray-400 hover:text-yellow-400 uppercase tracking-wider transition-colors"
+              >
+                🏆 View Leaderboard
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
