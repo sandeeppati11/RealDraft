@@ -136,66 +136,139 @@ const simulateMatch = (roomCode, host, opponent) => {
   const hostRatings = calculateTeamRatings(host.selectedPlayers);
   const opponentRatings = calculateTeamRatings(opponent.selectedPlayers);
   
-  // 1. Midfield Control & Possession
-  // Combine Midfield group rating and team attributes (passing and dribbling)
-  const hostMidfieldStrength = (hostRatings.midfield * 0.6) + ((hostRatings.passing + hostRatings.dribbling) / 2) * 0.4;
-  const opponentMidfieldStrength = (opponentRatings.midfield * 0.6) + ((opponentRatings.passing + opponentRatings.dribbling) / 2) * 0.4;
-  
-  const totalMidfield = hostMidfieldStrength + opponentMidfieldStrength;
-  let hostPossession = Math.round((hostMidfieldStrength / (totalMidfield || 1)) * 100);
-  // Add random factor of +/- 3%
-  hostPossession += Math.round(Math.random() * 6 - 3);
-  // Clamp possession between 30% and 70% for realism
-  hostPossession = Math.max(30, Math.min(70, hostPossession));
-  const opponentPossession = 100 - hostPossession;
+  // 1. Team Identities (Precompute modifiers)
+  // Technical bonus for possession & pass accuracy
+  const hostTechBonus = Math.max(0, (hostRatings.passing + hostRatings.dribbling) / 2 - 78) * 0.4;
+  const opponentTechBonus = Math.max(0, (opponentRatings.passing + opponentRatings.dribbling) / 2 - 78) * 0.4;
 
-  // 2. Chance Creation (Shots)
-  // Higher Midfield Control + Pace/Passing creates more opportunities
-  // Host attacks:
-  const hostChancesBase = 4 + (hostMidfieldStrength / (opponentMidfieldStrength || 1)) * 6 + ((hostRatings.pace + hostRatings.passing) / 20);
-  // Opponent attacks:
-  const opponentChancesBase = 4 + (opponentMidfieldStrength / (hostMidfieldStrength || 1)) * 6 + ((opponentRatings.pace + opponentRatings.passing) / 20);
-  
-  // Opponent Defense reduces host chances, and vice versa
-  const hostDefStrength = (hostRatings.defense * 0.7) + (hostRatings.defending * 0.3);
-  const opponentDefStrength = (opponentRatings.defense * 0.7) + (opponentRatings.defending * 0.3);
-  
-  // Final shots conceded depends on defense efficiency (benchmark is 80 rating)
-  const hostShots = Math.max(0, Math.round(opponentChancesBase * (80 / (hostDefStrength || 1)) + Math.random() * 3));
-  const opponentShots = Math.max(0, Math.round(hostChancesBase * (80 / (opponentDefStrength || 1)) + Math.random() * 3));
+  // Pace bonus for counter-attacking chance creation
+  const hostPaceBonus = Math.max(0, hostRatings.pace - 78) * 0.08;
+  const opponentPaceBonus = Math.max(0, opponentRatings.pace - 78) * 0.08;
 
-  // 3. Goal Conversion (Goal Generation & GK interaction)
-  // Attack (Overall + Shooting) vs GK (Goalkeeper + Physical)
-  const hostAttStrength = (hostRatings.attack * 0.6) + (hostRatings.shooting * 0.4);
-  const opponentAttStrength = (opponentRatings.attack * 0.6) + (opponentRatings.shooting * 0.4);
+  // Physical bonus for aerial duels & goal conversion
+  const hostPhysBonus = Math.max(0, hostRatings.physical - 78) * 0.004;
+  const opponentPhysBonus = Math.max(0, opponentRatings.physical - 78) * 0.004;
+
+  // Defensive block scaling (reducing opponent chances)
+  const hostDefFactor = 1.0 - Math.max(0, hostRatings.defending - 78) * 0.012;
+  const opponentDefFactor = 1.0 - Math.max(0, opponentRatings.defending - 78) * 0.012;
+
+  // 2. Setup segment simulation (6 blocks of 15 minutes)
+  let hostScore = 0;
+  let opponentScore = 0;
+  let hostShots = 0;
+  let opponentShots = 0;
   
-  const hostGkStrength = (hostRatings.goalkeeper * 0.8) + (hostRatings.physical * 0.2);
-  const opponentGkStrength = (opponentRatings.goalkeeper * 0.8) + (opponentRatings.physical * 0.2);
-  
-  // Base conversion ratio is around 10-15%, scaled by attack vs gk, and a tiny physical duel bonus
+  let hostPossessionSum = 0;
+  const goalEvents = [];
+
+  let hostMomentum = 1.0;
+  let opponentMomentum = 1.0;
+
   const hostPhysicalRatio = Math.pow(hostRatings.physical / (opponentRatings.physical || 1), 0.2);
   const opponentPhysicalRatio = Math.pow(opponentRatings.physical / (hostRatings.physical || 1), 0.2);
 
-  // Captain influence gives a 3% boost to efficiency
   const hostCaptainFactor = hostRatings.captainBonus > 0 ? 1.03 : 1.0;
   const opponentCaptainFactor = opponentRatings.captainBonus > 0 ? 1.03 : 1.0;
 
-  // Add random variance of 0% to 5%
-  const hostConversionRate = (0.10 * (hostAttStrength / (opponentGkStrength || 1)) + Math.random() * 0.05) * hostPhysicalRatio * hostCaptainFactor;
-  const opponentConversionRate = (0.10 * (opponentAttStrength / (hostGkStrength || 1)) + Math.random() * 0.05) * opponentPhysicalRatio * opponentCaptainFactor;
+  for (let segment = 0; segment < 6; segment++) {
+    const startMin = segment * 15;
+    const isLateGame = segment === 5; // 75' - 90'
 
-  let hostScore = Math.round(opponentShots * hostConversionRate);
-  let opponentScore = Math.round(hostShots * opponentConversionRate);
+    // Decay momentum back to 1.0 slightly at start of segment
+    hostMomentum = hostMomentum * 0.8 + 1.0 * 0.2;
+    opponentMomentum = opponentMomentum * 0.8 + 1.0 * 0.2;
 
-  // Safety caps
-  hostScore = Math.min(6, Math.max(0, hostScore));
-  opponentScore = Math.min(6, Math.max(0, opponentScore));
+    // Calculate ratings with momentum
+    const hostMidfieldStrength = (hostRatings.midfield * 0.6 + ((hostRatings.passing + hostRatings.dribbling) / 2) * 0.4 + hostTechBonus) * hostMomentum;
+    const opponentMidfieldStrength = (opponentRatings.midfield * 0.6 + ((opponentRatings.passing + opponentRatings.dribbling) / 2) * 0.4 + opponentTechBonus) * opponentMomentum;
 
-  // 4. Match Strength (Rebalanced tactical strength with reduced randomness)
-  // Lucky factor is reduced to a narrow range of 2.0 to 5.0 ( finishing touch, not deciding factor )
+    // Possession ratio
+    const totalMidfield = hostMidfieldStrength + opponentMidfieldStrength;
+    let segPossession = Math.round((hostMidfieldStrength / (totalMidfield || 1)) * 100);
+    segPossession += Math.round(Math.random() * 4 - 2);
+    segPossession = Math.max(30, Math.min(70, segPossession));
+    hostPossessionSum += segPossession;
+
+    // Tactical setup for late game push
+    let hostLateGameMod = 1.0;
+    let opponentLateGameMod = 1.0;
+    let hostLateDefMod = 1.0;
+    let opponentLateDefMod = 1.0;
+
+    if (isLateGame) {
+      if (hostScore < opponentScore) {
+        hostLateGameMod = 1.4; // Attacking desperation
+        hostLateDefMod = 0.75;  // Defense vulnerability
+      } else if (opponentScore < hostScore) {
+        opponentLateGameMod = 1.4;
+        opponentLateDefMod = 0.75;
+      }
+    }
+
+    // Base chances created per segment
+    const hostChancesBase = (0.5 + (segPossession / 25) + hostPaceBonus) * hostMomentum * hostLateGameMod;
+    const opponentChancesBase = (0.5 + ((100 - segPossession) / 25) + opponentPaceBonus) * opponentMomentum * opponentLateGameMod;
+
+    // Defense ratings and identity reduction
+    const hostDefStrength = ((hostRatings.defense * 0.7) + (hostRatings.defending * 0.3)) * hostMomentum * hostLateDefMod;
+    const opponentDefStrength = ((opponentRatings.defense * 0.7) + (opponentRatings.defending * 0.3)) * opponentMomentum * opponentLateDefMod;
+
+    // Shots taken this segment
+    const hostSegShots = Math.max(0, Math.round(hostChancesBase * (80 / (opponentDefStrength || 1)) * opponentDefFactor + Math.random() * 0.8));
+    const opponentSegShots = Math.max(0, Math.round(opponentChancesBase * (80 / (hostDefStrength || 1)) * hostDefFactor + Math.random() * 0.8));
+
+    hostShots += hostSegShots;
+    opponentShots += opponentSegShots;
+
+    // Conversion rate calculation
+    const hostAttStrength = (hostRatings.attack * 0.6) + (hostRatings.shooting * 0.4);
+    const opponentAttStrength = (opponentRatings.attack * 0.6) + (opponentRatings.shooting * 0.4);
+    
+    const hostGkStrength = (hostRatings.goalkeeper * 0.8) + (hostRatings.physical * 0.2);
+    const opponentGkStrength = (opponentRatings.goalkeeper * 0.8) + (opponentRatings.physical * 0.2);
+
+    const hostConversion = (0.12 * (hostAttStrength / (opponentGkStrength || 1)) + hostPhysBonus) * hostPhysicalRatio * hostCaptainFactor + Math.random() * 0.03;
+    const opponentConversion = (0.12 * (opponentAttStrength / (hostGkStrength || 1)) + opponentPhysBonus) * opponentPhysicalRatio * opponentCaptainFactor + Math.random() * 0.03;
+
+    // Calculate goals in this segment
+    const hostSegGoals = Math.round(hostSegShots * hostConversion);
+    const opponentSegGoals = Math.round(opponentSegShots * opponentConversion);
+
+    // Save events
+    if (hostSegGoals > 0) {
+      for (let g = 0; g < hostSegGoals; g++) {
+        const min = startMin + Math.floor(Math.random() * 14) + 1;
+        goalEvents.push({ minute: min, team: 'host' });
+      }
+      hostScore += hostSegGoals;
+      // Goal momentum swing
+      hostMomentum = Math.min(1.4, hostMomentum + 0.15);
+      opponentMomentum = Math.max(0.7, opponentMomentum - 0.10);
+    }
+
+    if (opponentSegGoals > 0) {
+      for (let g = 0; g < opponentSegGoals; g++) {
+        const min = startMin + Math.floor(Math.random() * 14) + 1;
+        goalEvents.push({ minute: min, team: 'opponent' });
+      }
+      opponentScore += opponentSegGoals;
+      // Goal momentum swing
+      opponentMomentum = Math.min(1.4, opponentMomentum + 0.15);
+      hostMomentum = Math.max(0.7, hostMomentum - 0.10);
+    }
+  }
+
+  // 3. Post-simulation rebalance and stats aggregation
+  hostScore = Math.min(6, hostScore);
+  opponentScore = Math.min(6, opponentScore);
+
+  const hostPossession = Math.round(hostPossessionSum / 6);
+  const opponentPossession = 100 - hostPossession;
+
+  // Rebalanced strength score
   const hostRandom = 2.0 + Math.random() * 3.0;
   const opponentRandom = 2.0 + Math.random() * 3.0;
-  
   const hostStrength = (hostRatings.attack * 0.25) + 
                        (hostRatings.midfield * 0.25) + 
                        (hostRatings.defense * 0.20) + 
@@ -215,12 +288,9 @@ const simulateMatch = (roomCode, host, opponent) => {
   // Determine scorers
   const getScorers = (playersList, score) => {
     if (score === 0) return [];
-    
-    // Filter out players assigned to the GK pitch node
     const candidates = playersList.filter(p => p.position !== 'GK');
     if (candidates.length === 0) return Array(score).fill("Unknown Scorer");
 
-    // Assign probability weights based on Shooting stat
     const scorers = [];
     for (let i = 0; i < score; i++) {
       const totalWeight = candidates.reduce((sum, p) => sum + (p.player.shooting || 70), 0);
@@ -239,8 +309,34 @@ const simulateMatch = (roomCode, host, opponent) => {
     return scorers;
   };
 
+  // Re-map scorers to goals
   const hostRawScorers = getScorers(host.selectedPlayers, hostScore);
   const opponentRawScorers = getScorers(opponent.selectedPlayers, opponentScore);
+
+  const hostScorers = [];
+  const opponentScorers = [];
+  const events = [];
+
+  // Sort chronological goal events from segment list
+  const hostGoalMins = goalEvents.filter(e => e.team === 'host').map(e => e.minute).sort((a,b) => a-b);
+  const opponentGoalMins = goalEvents.filter(e => e.team === 'opponent').map(e => e.minute).sort((a,b) => a-b);
+
+  for (let i = 0; i < hostScore; i++) {
+    const min = hostGoalMins[i] || (Math.floor(Math.random() * 88) + 1);
+    const name = hostRawScorers[i] || "Scorer";
+    hostScorers.push({ name, minute: min });
+    events.push({ minute: min, team: 'host', scorer: name });
+  }
+
+  for (let i = 0; i < opponentScore; i++) {
+    const min = opponentGoalMins[i] || (Math.floor(Math.random() * 88) + 1);
+    const name = opponentRawScorers[i] || "Scorer";
+    opponentScorers.push({ name, minute: min });
+    events.push({ minute: min, team: 'opponent', scorer: name });
+  }
+
+  hostScorers.sort((a, b) => a.minute - b.minute);
+  opponentScorers.sort((a, b) => a.minute - b.minute);
 
   // MVP selection (Highest rating player on the winning team, or draw)
   const winningTeam = hostScore >= opponentScore ? host : opponent;
@@ -248,16 +344,15 @@ const simulateMatch = (roomCode, host, opponent) => {
   const mvp = mvpPlayer ? mvpPlayer.player.name : "N/A";
 
   // Shots on Target must be >= goals and <= total shots
-  // Opponent shots are host's shots faced (conceded by opponent), and vice versa
-  const hostShotsOnTarget = hostScore + Math.floor(Math.random() * Math.max(1, (opponentShots - hostScore) * 0.45));
-  const opponentShotsOnTarget = opponentScore + Math.floor(Math.random() * Math.max(1, (hostShots - opponentScore) * 0.45));
+  const hostShotsOnTarget = hostScore + Math.floor(Math.random() * Math.max(1, (hostShots - hostScore) * 0.45));
+  const opponentShotsOnTarget = opponentScore + Math.floor(Math.random() * Math.max(1, (opponentShots - opponentScore) * 0.45));
 
   // Passes proportional to possession
   const hostPasses = Math.round((hostPossession / 100) * 900 + Math.random() * 60);
   const opponentPasses = Math.round((opponentPossession / 100) * 900 + Math.random() * 60);
 
-  const hostPassAccuracy = Math.round(75 + (hostRatings.midfield - 70) * 0.65 + Math.random() * 5);
-  const opponentPassAccuracy = Math.round(75 + (opponentRatings.midfield - 70) * 0.65 + Math.random() * 5);
+  const hostPassAccuracy = Math.round(75 + (hostRatings.midfield - 70) * 0.65 + hostTechBonus * 2 + Math.random() * 4);
+  const opponentPassAccuracy = Math.round(75 + (opponentRatings.midfield - 70) * 0.65 + opponentTechBonus * 2 + Math.random() * 4);
 
   const hostFouls = Math.floor(Math.random() * 8) + 4;
   const opponentFouls = Math.floor(Math.random() * 8) + 4;
@@ -268,32 +363,10 @@ const simulateMatch = (roomCode, host, opponent) => {
   const hostCorners = Math.floor(Math.random() * 6) + 2;
   const opponentCorners = Math.floor(Math.random() * 6) + 2;
 
-  // Saves = opponent's shots on target minus opponent's goals
-  // Opponent shots on target is what host goalkeeper faced
+  // Saves = shots on target faced minus goals conceded
   const hostSaves = Math.max(0, opponentShotsOnTarget - opponentScore);
   const opponentSaves = Math.max(0, hostShotsOnTarget - hostScore);
 
-  // Generate Match Highlights (Commentary) and attach goal minutes
-  const commentary = [];
-  const events = [];
-  const hostScorers = [];
-  const opponentScorers = [];
-  
-  hostRawScorers.forEach(scorerName => {
-    const min = Math.floor(Math.random() * 88) + 1;
-    events.push({ minute: min, team: 'host', scorer: scorerName });
-    hostScorers.push({ name: scorerName, minute: min });
-  });
-
-  opponentRawScorers.forEach(scorerName => {
-    const min = Math.floor(Math.random() * 88) + 1;
-    events.push({ minute: min, team: 'opponent', scorer: scorerName });
-    opponentScorers.push({ name: scorerName, minute: min });
-  });
-
-  hostScorers.sort((a, b) => a.minute - b.minute);
-  opponentScorers.sort((a, b) => a.minute - b.minute);
-  
   const genericMoments = [
     { text: "Kickoff! The match is underway under clear skies.", minute: 1 },
     { text: "Great tackle in the midfield stops a dangerous counterattack.", minute: 15 },
@@ -307,6 +380,7 @@ const simulateMatch = (roomCode, host, opponent) => {
   events.push(...genericMoments);
   events.sort((a, b) => a.minute - b.minute);
 
+  const commentary = [];
   events.forEach(event => {
     if (event.text) {
       commentary.push(`${event.minute}' - ${event.text}`);
@@ -329,8 +403,8 @@ const simulateMatch = (roomCode, host, opponent) => {
     stats: {
       hostPossession,
       opponentPossession,
-      hostShots: opponentShots, // opponent's shots faced is what host shot!
-      opponentShots: hostShots, // host's shots faced is what opponent shot!
+      hostShots,
+      opponentShots,
       hostShotsOnTarget,
       opponentShotsOnTarget,
       hostPasses,
