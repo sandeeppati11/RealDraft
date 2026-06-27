@@ -1,0 +1,77 @@
+{
+  "version": "1.0.0",
+  "generatedAt": "2026-06-26T18:19:05.192878Z",
+  "totalPlayers": 1000,
+  "sourceCSV": "FIFA23_official_data.csv",
+  "config": {
+    "targetPlayerCount": 1000,
+    "positionRatios": {
+      "GK": 0.0707,
+      "LB": 0.0556,
+      "RB": 0.0556,
+      "CB": 0.1414,
+      "LWB": 0.0202,
+      "RWB": 0.0202,
+      "CDM": 0.0707,
+      "CM": 0.1212,
+      "CAM": 0.0707,
+      "LM": 0.0404,
+      "RM": 0.0404,
+      "LW": 0.0556,
+      "RW": 0.0556,
+      "CF": 0.0404,
+      "ST": 0.1111
+    }
+  },
+  "positionCounts": {
+    "GK": 73,
+    "LB": 57,
+    "RB": 57,
+    "CB": 145,
+    "LWB": 21,
+    "RWB": 21,
+    "CDM": 73,
+    "CM": 125,
+    "CAM": 75,
+    "LM": 42,
+    "RM": 42,
+    "LW": 59,
+    "RW": 58,
+    "CF": 35,
+    "ST": 117
+  },
+  "tierCounts": {
+    "Elite": 10,
+    "World Class": 50,
+    "Excellent": 171,
+    "Good": 380,
+    "Average": 389
+  },
+  "ratingDistribution": {
+    "avgOverall": 78.12,
+    "minOverall": 70,
+    "maxOverall": 91,
+    "counts": {
+      "90+": 10,
+      "86-89": 50,
+      "82-85": 171,
+      "78-81": 380,
+      "74-77": 175,
+      "70-73": 214,
+      "<70": 0
+    }
+  },
+  "validationReport": {
+    "status": "PASSED",
+    "duplicateIds": 0,
+    "duplicateNames": 7,
+    "missingFields": 0,
+    "statsOutOfRange": 0,
+    "invalidPositions": 0,
+    "underOverallThreshold": 0,
+    "validationIssues": [],
+    "redistributionLog": [
+      "Redistributing 7 slots from CF to fallbacks ['ST', 'CAM', 'LW', 'RW']"
+    ]
+  }
+}
